@@ -6,8 +6,8 @@ all: picohttpparser.o server.o threadpool.o sem.o
 sem.o: sem.c
 	gcc -c $(CFLAGS) sem.c
 
-picohttpparser.o: picohttpparser-master/picohttpparser.c
-	gcc -c $(CFLAGS) picohttpparser-master/picohttpparser.c
+picohttpparser.o: picohttpparser-1.2/picohttpparser.c
+	gcc -c $(CFLAGS) picohttpparser-1.2/picohttpparser.c
 
 selectserver.o: server.c
 	gcc -c $(CFLAGS) server.c

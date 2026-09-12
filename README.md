@@ -16,7 +16,9 @@ Some code parts are inspired by beejs guide for network programming (https://bee
 
 ### Depedencies
 
-Clone https://github.com/h2o/picohttpparser into the directory of this README file
+Fetch the dependency into the directory of this README file and unzip:
+
+wget https://github.com/h2o/picohttpparser/archive/refs/tags/v1.2.zip && unzip v1.2.zip
 
 ### Build and launch the servr at port 3000
 
