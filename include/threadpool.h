@@ -7,8 +7,13 @@ struct entry {
 };
 
 struct threadpool_arg {
-	char *(*request_handler)(struct http_request *req);
 	void *(*thread_handle)(void *arg);
+	struct {
+		char *path;
+		size_t path_len;
+		char * (*request_handler)(struct http_request *req);
+	} *handler_mappings;
+	size_t num_mappings;
 };
 
 void init_threadpool(int num_threads, int queue_cap, void *arg);

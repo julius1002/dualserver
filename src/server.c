@@ -178,22 +178,25 @@ void handle_client_data(int fd, int listener, fd_set *master, int *fdmax)
 }
 
 // global handler, EVERY request lands here
-char *request_handler(struct http_request *req) {
-	return NULL;
-}
-
 void *thread_handle(void *arg) 
 {
 	while(1) 
 	{
 		struct entry *head = (struct entry *) threadpool_dequeue();
 		struct http_request *req = head->data;
-		char *response = request_handler(req);
 
-		char *(*request_handler)(struct http_request *req) = (char *(*)(struct http_request *req))arg;
-		if(response == NULL) {
-			response = RESPONSE;
+		struct threadpool_arg *tp_arg = (struct threadpool_arg *) arg;
+		char *response = RESPONSE;
+		for(size_t i = 0; i < tp_arg->num_mappings; i++) {
+			if(req->path_len == tp_arg->handler_mappings[i].path_len 
+					&& !strncmp(req->path, tp_arg->handler_mappings[i].path,
+						tp_arg->handler_mappings[i].path_len)) {
+
+				response = tp_arg->handler_mappings[i].request_handler(req);
+
+			}
 		}
+		
 	        write(req->conn, response, strlen(response));
 
 		int wakeup_fd = req->wakeup_fd;
@@ -210,7 +213,9 @@ void *thread_handle(void *arg)
 int launch_dualserver(struct dualserver *dserver)
 {
 	struct threadpool_arg arg;
-	arg.request_handler = request_handler;
+	arg.handler_mappings = dserver->handler_mappings;
+	arg.num_mappings = dserver->num_mappings;
+
 	arg.thread_handle = thread_handle;
 	init_threadpool(10, 1000, (void *) &arg);
 
@@ -264,18 +269,17 @@ int launch_dualserver(struct dualserver *dserver)
 }
 
 void add_handler_mapping(char *path, char * (*request_handler)(struct http_request *req), struct dualserver *dserver) {
-
+	if(dserver->num_mappings >= dserver->max_mappings) {
+		printf("handler not added, max_mappings reached\n"); // TODO replace with proper logging
+	} else {
+		dserver->handler_mappings[dserver->num_mappings].path = path;
+		dserver->handler_mappings[dserver->num_mappings].path_len = strlen(path);
+		dserver->handler_mappings[dserver->num_mappings++].request_handler = request_handler;
+	}
 }
 
 void init_dualserver(struct dualserver *dserver) {
 	dserver->num_mappings = 0;
 	dserver->max_mappings = 10;
 	dserver->handler_mappings = malloc(dserver->max_mappings * sizeof(dserver->handler_mappings));
-}
-
-int main() {
-	struct dualserver dserver;
-	init_dualserver(&dserver);
-	launch_dualserver(&dserver);
-	return 0;
 }
