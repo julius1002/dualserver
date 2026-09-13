@@ -41,4 +41,6 @@ b -n 1000 -c 100 127.0.1:3000/
 
 * config file
 
+* store handler mappings in a tree structure for faster search
+
 * ...
