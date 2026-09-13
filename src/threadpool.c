@@ -1,6 +1,6 @@
-#include "threadpool.h"
+#include "../include/threadpool.h"
 #include <pthread.h>
-#include "sem.h"
+#include "../include/sem.h"
 #include <stdlib.h>
 
 STAILQ_HEAD(stailhead, entry) head;
@@ -16,11 +16,12 @@ struct threadpool {
 	pthread_t threads[];
 } tp;
 
-void init_threadpool(int num_threads, int queue_cap, void * (* handler)(void *)) {
+void init_threadpool(int num_threads, int queue_cap, void *arg) {
 	tp.num_threads = num_threads;
 	init_queue(queue_cap);
+        struct threadpool_arg *tp_arg = (struct threadpool_arg *) arg;
 	for(int i = 0; i < num_threads; i++) {
-		pthread_create(&tp.threads[i], NULL, handler, NULL);
+		pthread_create(&tp.threads[i], NULL, tp_arg->thread_handle, tp_arg);
 	}
 }
 

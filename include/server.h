@@ -13,3 +13,12 @@
 #define PORT "3000"
 
 #define RESPONSE "HTTP/1.0 200 OK\r\nContent-Length: 12\r\n\r\nHello world!"
+
+struct dualserver {
+	struct {
+		char *path;
+		char * (*request_handler)(struct http_request *req);
+	} *handler_mappings;
+	size_t num_mappings;
+	size_t max_mappings;
+};

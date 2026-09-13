@@ -1,4 +1,4 @@
-#include "sem.h"
+#include "../include/sem.h"
 
 void my_sem_init(my_sem_t *sem, int count){
 

@@ -1,5 +1,5 @@
-#include "server.h"
-#include "fcntl.h"
+#include "../include/server.h"
+#include <fcntl.h>
 
 /**
  * Simple utility functions
@@ -118,20 +118,23 @@ void parse_raw(char *buf, int nbytes, int listener, int s, fd_set *master, int f
 			    (int)dst->headers[i].value_len, dst->headers[i].value);
 	}
         #endif
-
-	/*
-	for(int j = 0; j <= fdmax; j++) {
-		// send to everyone!
-		if (FD_ISSET(j, master)) {
-			// except the listener and ourselves
-			if (j != listener && j != s) {
-				if (send(j, buf, nbytes, 0) == -1) {
-					perror("send");
-				}
-			}
-		}
-	}*/
 }
+
+void prepare_signaling_pipe(int *fds) {
+	if(pipe(fds) < 0) 
+	{
+		perror("pipe");
+		exit(1);
+	}
+
+	int read_fd = fds[0];
+	int flags = fcntl(read_fd, F_GETFL);
+
+	// this needs to be nonblocking for the eventloop
+	// the write fd stays blocking, since our blocking thread writes to it
+	fcntl(read_fd, F_SETFL, flags | O_NONBLOCK);
+}
+
 /*
  * Handle client data and hangups
  */
@@ -140,43 +143,29 @@ void handle_client_data(int fd, int listener, fd_set *master, int *fdmax)
 	char buf[512];    // buffer for client data
 	int nbytes;
 
-	// handle data from a client
 	if ((nbytes = recv(fd, buf, sizeof buf, 0)) <= 0) 
 	{
-		// got error or connection closed by client
 		if (nbytes == 0) 
 		{
-			// connection closed
 			printf("selectserver: socket %d hung up\n", fd);
 		} else {
 			perror("recv");
 		}
-		close(fd); // bye!
-		FD_CLR(fd, master); // remove from master set
+		close(fd);
+		FD_CLR(fd, master);
 	} 
 	else 
 	{
 		int fds[2];
-		if(pipe(fds) < 0) 
-		{
-			perror("pipe");
-			exit(1);
-		}
+		prepare_signaling_pipe(fds);
 
-		int read_fd = fds[0];
-		int flags = fcntl(read_fd, F_GETFL);
+		put_conn_by_pipe_fd(fd, fds[0]);
 
-		// this needs to be nonblocking for the eventloop
-		// the write fd stays blocking, since our blocking thread writes to it
-		fcntl(read_fd, F_SETFL, flags | O_NONBLOCK);
-
-		put_conn_by_pipe_fd(fd, read_fd);
-
-		FD_SET(read_fd, master);
-		if (read_fd > *fdmax) 
+		FD_SET(fds[0], master);
+		if (fds[0] > *fdmax) 
 		{  
 			// keep track of the max
-			*fdmax = read_fd;
+			*fdmax = fds[0];
 		}
 		struct http_request *req = (struct http_request *) malloc(sizeof(struct http_request));
 		con_to_req[fd] = req;
@@ -188,13 +177,24 @@ void handle_client_data(int fd, int listener, fd_set *master, int *fdmax)
 	}
 }
 
-void *consume(void *arg) 
+// global handler, EVERY request lands here
+char *request_handler(struct http_request *req) {
+	return NULL;
+}
+
+void *thread_handle(void *arg) 
 {
 	while(1) 
 	{
 		struct entry *head = (struct entry *) threadpool_dequeue();
 		struct http_request *req = head->data;
-	        write(req->conn, RESPONSE, strlen(RESPONSE));
+		char *response = request_handler(req);
+
+		char *(*request_handler)(struct http_request *req) = (char *(*)(struct http_request *req))arg;
+		if(response == NULL) {
+			response = RESPONSE;
+		}
+	        write(req->conn, response, strlen(response));
 
 		int wakeup_fd = req->wakeup_fd;
 		char byte = '\0';
@@ -207,12 +207,12 @@ void *consume(void *arg)
 	return NULL;
 }
 
-/*
- * Main
- */
-int main(void)
+int launch_dualserver(struct dualserver *dserver)
 {
-	init_threadpool(10, 1000, consume);
+	struct threadpool_arg arg;
+	arg.request_handler = request_handler;
+	arg.thread_handle = thread_handle;
+	init_threadpool(10, 1000, (void *) &arg);
 
 	fd_set master, read_fds;
 	int fdmax;
@@ -260,5 +260,22 @@ int main(void)
 			}
 		}
 	}
+	return 0;
+}
+
+void add_handler_mapping(char *path, char * (*request_handler)(struct http_request *req), struct dualserver *dserver) {
+
+}
+
+void init_dualserver(struct dualserver *dserver) {
+	dserver->num_mappings = 0;
+	dserver->max_mappings = 10;
+	dserver->handler_mappings = malloc(dserver->max_mappings * sizeof(dserver->handler_mappings));
+}
+
+int main() {
+	struct dualserver dserver;
+	init_dualserver(&dserver);
+	launch_dualserver(&dserver);
 	return 0;
 }
