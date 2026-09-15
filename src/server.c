@@ -185,15 +185,35 @@ void *thread_handle(void *arg)
 		struct entry *head = (struct entry *) threadpool_dequeue();
 		struct http_request *req = head->data;
 
+
 		struct threadpool_arg *tp_arg = (struct threadpool_arg *) arg;
 		char *response = RESPONSE;
+
+		char *content_len = NULL;
+		for(int i = 0;i < req->num_headers; i++) {
+			if(req->headers[i].name_len == 14 && strncmp(req->headers[i].name, "Content-Type", 14)) {
+				content_len = malloc(sizeof(char) * req->headers[i].value_len + 1);
+				memcpy(content_len, req->headers[i].value, req->headers[i].value_len);
+			}
+		}
+
+		char *body = NULL;
+		if(content_len != NULL) {
+			struct phr_header *header_before_body = &req->headers[req->num_headers - 1];
+			int clen = atoi(content_len);
+			req->body = malloc(clen * sizeof(char) + 1);
+			req->body_len = clen;
+			memcpy(req->body, ((char *)header_before_body->value) + 4 + header_before_body->value_len, clen);
+		}
+
+		struct http_response *res = NULL;
 		for(size_t i = 0; i < tp_arg->num_mappings; i++) {
 			if(req->path_len == tp_arg->handler_mappings[i].path_len 
 					&& !strncmp(req->path, tp_arg->handler_mappings[i].path,
 						tp_arg->handler_mappings[i].path_len)) {
 
-				response = tp_arg->handler_mappings[i].request_handler(req);
-
+				res = malloc(sizeof(struct http_response));
+				response = tp_arg->handler_mappings[i].request_handler(req, res);
 			}
 		}
 		
@@ -205,7 +225,12 @@ void *thread_handle(void *arg)
 		{
 			perror("write to wakeup pipe");
 		}
+
 		close(wakeup_fd);
+
+		if(res != NULL) {
+			free(res);
+		}
 	}
 	return NULL;
 }
@@ -250,13 +275,17 @@ int launch_dualserver(struct dualserver *dserver)
 				{       
 					/* here we are getting the signal from the thread,
 					 * that the event loop can close the connection safely
+					 *
+					 * we are also doing clean up here
 					 */
 					close(conn);
 					FD_CLR(conn, &master);
 					close(i);
 					FD_CLR(i, &master);
 					remove_conn_by_pipe_fd(i);
-					free(con_to_req[conn]);
+					struct http_request *req = con_to_req[conn];
+					free(req->body);
+					free(req);
 				} 
 				else
 				{
@@ -268,7 +297,7 @@ int launch_dualserver(struct dualserver *dserver)
 	return 0;
 }
 
-void add_handler_mapping(char *path, char * (*request_handler)(struct http_request *req), struct dualserver *dserver) {
+void add_handler_mapping(char *path, char * (*request_handler)(struct http_request *req, struct http_response *res), struct dualserver *dserver) {
 	if(dserver->num_mappings >= dserver->max_mappings) {
 		printf("handler not added, max_mappings reached\n"); // TODO replace with proper logging
 	} else {

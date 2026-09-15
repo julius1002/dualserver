@@ -18,12 +18,12 @@ struct dualserver {
 	struct {
 		char *path;
 		size_t path_len;
-		char * (*request_handler)(struct http_request *req);
+		char * (*request_handler)(struct http_request *req, struct http_response *res);
 	} *handler_mappings;
 	size_t num_mappings;
 	size_t max_mappings;
 };
 
 void init_dualserver(struct dualserver *dserver);
-void add_handler_mapping(char *path, char * (*request_handler)(struct http_request *req), struct dualserver *dserver);
+void add_handler_mapping(char *path, char * (*request_handler)(struct http_request *req, struct http_response *res), struct dualserver *dserver);
 int launch_dualserver(struct dualserver *dserver);

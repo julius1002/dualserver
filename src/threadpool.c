@@ -62,4 +62,3 @@ void threadpool_enqueue(void *data) {
 	pthread_mutex_unlock(&tp.queue.mutex);
 	my_sem_post(&tp.queue.taken_slots);
 }
-

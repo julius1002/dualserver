@@ -1,11 +1,14 @@
 CFLAGS=-O0 -DDEBUG -g
 #-fsanitize=address
 
-static: picohttpparser.o server.o threadpool.o sem.o
-	ar rcs dualserver.a picohttpparser.o server.o threadpool.o sem.o
+static: picohttpparser.o server.o threadpool.o sem.o http.o
+	ar rcs dualserver.a picohttpparser.o server.o threadpool.o sem.o http.o
 
-all: picohttpparser.o server.o threadpool.o sem.o
-	gcc -c $(CFLAGS) picohttpparser.o server.o threadpool.o sem.o
+all: picohttpparser.o server.o threadpool.o sem.o http.o
+	gcc -c $(CFLAGS) picohttpparser.o server.o threadpool.o sem.o http.o
+
+http.o: src/http.c
+	gcc -c $(CFLAGS) src/http.c
 
 sem.o: src/sem.c
 	gcc -c $(CFLAGS) src/sem.c
