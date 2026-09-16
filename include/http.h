@@ -22,4 +22,8 @@ struct http_response {
         size_t body_len;
 };
 
+typedef void(*RequestHandler)(struct http_request *req, struct http_response *res);
+
 char *serialize(struct http_response *res, size_t *raw_len);
+
+void init_default_response(struct http_response *res);

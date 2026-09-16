@@ -3,16 +3,28 @@
 #include <string.h>
 #include <stdlib.h>
 
-char *serialize(struct http_response *res, size_t *raw_len) {
+void init_default_response(struct http_response *res) {
+	res->status = 200;
+	res->reason = "OK";
+	res->body = NULL;
+	res->body_len = 0;
+        res->num_headers = 0;
+}
+
+char *serialize(struct http_response *res, size_t *response_len) {
         size_t len = 0, pos = 0;
         int n;
         char *raw;
 
-        if (!res || !raw_len) {
+        if (!res || !response_len) {
             return NULL;
 	}
 
-        *raw_len = 0;
+	if(res->body != NULL) {
+		res->body_len = strlen(res->body);
+	}
+
+        *response_len = 0;
 
         n = snprintf(NULL, 0, "HTTP/1.1 %d %s\r\n", res->status, res->reason ? res->reason : "");
 
@@ -39,7 +51,6 @@ char *serialize(struct http_response *res, size_t *raw_len) {
 	}
 
         len += (size_t) n;
-
         len += 2;
         len += res->body_len;
 
@@ -83,11 +94,10 @@ char *serialize(struct http_response *res, size_t *raw_len) {
         pos += res->body_len;
 
         raw[pos] = '\0';
-        *raw_len = pos;
+        *response_len = pos;
         return raw;
 
     error:
         free(raw);
         return NULL;
-
 }

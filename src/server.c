@@ -177,47 +177,65 @@ void handle_client_data(int fd, int listener, fd_set *master, int *fdmax)
 	}
 }
 
-// global handler, EVERY request lands here
+void notfound_handler(struct http_request *req, struct http_response *res) {
+	res->status = 404;
+	res->reason = "Not Found";
+	res->body = "Not Found";
+	res->body_len = 9;
+        res->num_headers = 0;
+}
+
+void find_and_set_request_body(struct http_request *req) {
+        char *content_len = NULL;
+	for(int i = 0; i < req->num_headers; i++) {
+		if(req->headers[i].name_len == 14 && strncmp(req->headers[i].name, "Content-Type", 14)) {
+			content_len = malloc(sizeof(char) * req->headers[i].value_len + 1);
+			memcpy(content_len, req->headers[i].value, req->headers[i].value_len);
+		}
+	}
+
+	if(content_len != NULL) {
+		struct phr_header *header_before_body = &req->headers[req->num_headers - 1];
+		int clen = atoi(content_len);
+		free(content_len);
+		req->body = malloc(clen * sizeof(char) + 1);
+		req->body_len = clen;
+		memcpy(req->body, ((char *)header_before_body->value) + 4 + header_before_body->value_len, clen);
+	}
+}
+
 void *thread_handle(void *arg) 
 {
 	while(1) 
 	{
 		struct entry *head = (struct entry *) threadpool_dequeue();
 		struct http_request *req = head->data;
-
-
 		struct threadpool_arg *tp_arg = (struct threadpool_arg *) arg;
-		char *response = RESPONSE;
-
-		char *content_len = NULL;
-		for(int i = 0;i < req->num_headers; i++) {
-			if(req->headers[i].name_len == 14 && strncmp(req->headers[i].name, "Content-Type", 14)) {
-				content_len = malloc(sizeof(char) * req->headers[i].value_len + 1);
-				memcpy(content_len, req->headers[i].value, req->headers[i].value_len);
-			}
-		}
-
+		char *response = NULL;
 		char *body = NULL;
-		if(content_len != NULL) {
-			struct phr_header *header_before_body = &req->headers[req->num_headers - 1];
-			int clen = atoi(content_len);
-			req->body = malloc(clen * sizeof(char) + 1);
-			req->body_len = clen;
-			memcpy(req->body, ((char *)header_before_body->value) + 4 + header_before_body->value_len, clen);
-		}
-
 		struct http_response *res = NULL;
+		size_t out_len;
+
+
+		find_and_set_request_body(req);
+		res = malloc(sizeof(struct http_response));
+							    
 		for(size_t i = 0; i < tp_arg->num_mappings; i++) {
 			if(req->path_len == tp_arg->handler_mappings[i].path_len 
 					&& !strncmp(req->path, tp_arg->handler_mappings[i].path,
 						tp_arg->handler_mappings[i].path_len)) {
 
-				res = malloc(sizeof(struct http_response));
-				response = tp_arg->handler_mappings[i].request_handler(req, res);
+				init_default_response(res);
+				tp_arg->handler_mappings[i].request_handler(req, res);
+				response = serialize(res, &out_len);
 			}
 		}
+		if(response == NULL) {
+			notfound_handler(req, res);
+			response = serialize(res, &out_len);
+		}
 		
-	        write(req->conn, response, strlen(response));
+	        write(req->conn, response, out_len);
 
 		int wakeup_fd = req->wakeup_fd;
 		char byte = '\0';
@@ -278,12 +296,12 @@ int launch_dualserver(struct dualserver *dserver)
 					 *
 					 * we are also doing clean up here
 					 */
+					struct http_request *req = con_to_req[conn];
 					close(conn);
 					FD_CLR(conn, &master);
 					close(i);
 					FD_CLR(i, &master);
 					remove_conn_by_pipe_fd(i);
-					struct http_request *req = con_to_req[conn];
 					free(req->body);
 					free(req);
 				} 
@@ -297,7 +315,7 @@ int launch_dualserver(struct dualserver *dserver)
 	return 0;
 }
 
-void add_handler_mapping(char *path, char * (*request_handler)(struct http_request *req, struct http_response *res), struct dualserver *dserver) {
+void add_handler_mapping(char *path, RequestHandler request_handler, struct dualserver *dserver) {
 	if(dserver->num_mappings >= dserver->max_mappings) {
 		printf("handler not added, max_mappings reached\n"); // TODO replace with proper logging
 	} else {
