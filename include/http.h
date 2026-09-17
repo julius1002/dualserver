@@ -8,7 +8,7 @@ struct http_request {
 	int minor_version; // HTTP 1
 	size_t method_len, path_len, num_headers, body_len;
 	struct phr_header headers[50];
-	char *body;
+	const char *body;
 	struct fd_set *master;
 	int wakeup_fd;
 };
@@ -18,7 +18,7 @@ struct http_response {
         const char *reason;
         struct phr_header headers[50];
         size_t num_headers;
-        char *body;
+        const char *body;
         size_t body_len;
 };
 

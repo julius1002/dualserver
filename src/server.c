@@ -216,7 +216,6 @@ void *thread_handle(void *arg)
 		struct http_response *res = NULL;
 		size_t out_len;
 
-
 		find_and_set_request_body(req);
 		res = malloc(sizeof(struct http_response));
 							    
@@ -269,7 +268,7 @@ int launch_dualserver(struct dualserver *dserver)
 	FD_ZERO(&master);
 	FD_ZERO(&read_fds);
 
-	listener = tcp_listen(3000, 10);
+	listener = tcp_listen(dserver->port, 10);
 
 	FD_SET(listener, &master);
 
@@ -315,7 +314,7 @@ int launch_dualserver(struct dualserver *dserver)
 	return 0;
 }
 
-void add_handler_mapping(char *path, RequestHandler request_handler, struct dualserver *dserver) {
+void add_handler_mapping(const char *path, RequestHandler request_handler, struct dualserver *dserver) {
 	if(dserver->num_mappings >= dserver->max_mappings) {
 		printf("handler not added, max_mappings reached\n"); // TODO replace with proper logging
 	} else {
@@ -325,7 +324,8 @@ void add_handler_mapping(char *path, RequestHandler request_handler, struct dual
 	}
 }
 
-void init_dualserver(struct dualserver *dserver) {
+void init_dualserver(struct dualserver *dserver, int port) {
+	dserver->port = port;
 	dserver->num_mappings = 0;
 	dserver->max_mappings = 10;
 	dserver->handler_mappings = malloc(dserver->max_mappings * sizeof(dserver->handler_mappings));

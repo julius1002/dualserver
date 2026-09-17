@@ -10,13 +10,10 @@
 #include <stdio.h>
 #include "threadpool.h"
 
-#define PORT "3000"
-
-#define RESPONSE "HTTP/1.0 404 NOT FOUND\r\nContent-Length: 9\r\n\r\nNot found"
-
 struct dualserver {
+	int port;
 	struct {
-		char *path;
+		const char *path;
 		size_t path_len;
 		RequestHandler request_handler;
 	} *handler_mappings;
@@ -24,8 +21,8 @@ struct dualserver {
 	size_t max_mappings;
 };
 
-void init_dualserver(struct dualserver *dserver);
+void init_dualserver(struct dualserver *dserver, int port);
 
-void add_handler_mapping(char *path, void (*request_handler)(struct http_request *req, struct http_response *res), struct dualserver *dserver);
+void add_handler_mapping(const char *path, void (*request_handler)(struct http_request *req, struct http_response *res), struct dualserver *dserver);
 
 int launch_dualserver(struct dualserver *dserver);
