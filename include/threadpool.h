@@ -6,14 +6,16 @@ struct entry {
 	void *data;
 };
 
+struct handler_mapping {
+	const char *path;
+	size_t path_len;
+	RequestHandler request_handler;
+};
+
 struct threadpool_arg {
 	void *(*thread_handle)(void *arg);
-	struct {
-		char *path;
-		size_t path_len;
-		RequestHandler request_handler;
-	} *handler_mappings;
 	size_t num_mappings;
+	struct handler_mapping *handler_mappings;
 };
 
 void init_threadpool(int num_threads, int queue_cap, void *arg);

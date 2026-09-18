@@ -85,7 +85,7 @@ void handle_new_connection(int listener, fd_set *master, int *fdmax)
 /*
  * Parse data
  */
-void parse_raw(char *buf, int nbytes, int listener, int s, fd_set *master, int fdmax, struct http_request *dst)
+void parse_raw(char *buf, int nbytes, struct http_request *dst)
 {
 	size_t buflen = 0, prevbuflen = 0, method_len, path_len, num_headers;
 	int pret;
@@ -113,7 +113,7 @@ void parse_raw(char *buf, int nbytes, int listener, int s, fd_set *master, int f
 	printf("path is %.*s\n", (int)dst->path_len, dst->path);
 	printf("HTTP version is 1.%d\n", dst->minor_version);
 	printf("headers:\n");
-	for (int i = 0; i != dst->num_headers; ++i) {
+	for (size_t i = 0; i != dst->num_headers; ++i) {
 	    printf("%.*s: %.*s\n", (int)dst->headers[i].name_len, dst->headers[i].name,
 			    (int)dst->headers[i].value_len, dst->headers[i].value);
 	}
@@ -138,7 +138,7 @@ void prepare_signaling_pipe(int *fds) {
 /*
  * Handle client data and hangups
  */
-void handle_client_data(int fd, int listener, fd_set *master, int *fdmax)
+void handle_client_data(int fd, fd_set *master, int *fdmax)
 {
 	char buf[512];    // buffer for client data
 	int nbytes;
@@ -171,13 +171,13 @@ void handle_client_data(int fd, int listener, fd_set *master, int *fdmax)
 		con_to_req[fd] = req;
 		req->wakeup_fd = fds[1];
 		req->conn = fd;
-		parse_raw(buf, nbytes, listener, fd, master, *fdmax, req);
+		parse_raw(buf, nbytes, req);
 		req->master = master;
 		threadpool_enqueue(req);
 	}
 }
 
-void notfound_handler(struct http_request *req, struct http_response *res) {
+void notfound_handler(struct http_response *res) {
 	res->status = 404;
 	res->reason = "Not Found";
 	res->body = "Not Found";
@@ -185,9 +185,9 @@ void notfound_handler(struct http_request *req, struct http_response *res) {
         res->num_headers = 0;
 }
 
-void find_and_set_request_body(struct http_request *req) {
+void set_request_body(struct http_request *req) {
         char *content_len = NULL;
-	for(int i = 0; i < req->num_headers; i++) {
+	for(size_t i = 0; i < req->num_headers; i++) {
 		if(req->headers[i].name_len == 14 && strncmp(req->headers[i].name, "Content-Type", 14)) {
 			content_len = malloc(sizeof(char) * req->headers[i].value_len + 1);
 			memcpy(content_len, req->headers[i].value, req->headers[i].value_len);
@@ -200,7 +200,7 @@ void find_and_set_request_body(struct http_request *req) {
 		free(content_len);
 		req->body = malloc(clen * sizeof(char) + 1);
 		req->body_len = clen;
-		memcpy(req->body, ((char *)header_before_body->value) + 4 + header_before_body->value_len, clen);
+		memcpy((void *) req->body, ((char *)header_before_body->value) + 4 + header_before_body->value_len, clen);
 	}
 }
 
@@ -216,8 +216,14 @@ void *thread_handle(void *arg)
 		struct http_response *res = NULL;
 		size_t out_len;
 
-		find_and_set_request_body(req);
+		set_request_body(req);
 		res = malloc(sizeof(struct http_response));
+
+		if(req->path_len == 0 || (req->path_len == 1 && req->path[0] == '/')) {
+			// TODO serve static files 
+			printf("serving static files\n");
+			return NULL;
+		}
 							    
 		for(size_t i = 0; i < tp_arg->num_mappings; i++) {
 			if(req->path_len == tp_arg->handler_mappings[i].path_len 
@@ -230,11 +236,14 @@ void *thread_handle(void *arg)
 			}
 		}
 		if(response == NULL) {
-			notfound_handler(req, res);
+			notfound_handler(res);
 			response = serialize(res, &out_len);
 		}
 		
-	        write(req->conn, response, out_len);
+	        if(0 > write(req->conn, response, out_len)) {
+			perror("Error write");
+			exit(1);
+		}
 
 		int wakeup_fd = req->wakeup_fd;
 		char byte = '\0';
@@ -301,12 +310,12 @@ int launch_dualserver(struct dualserver *dserver)
 					close(i);
 					FD_CLR(i, &master);
 					remove_conn_by_pipe_fd(i);
-					free(req->body);
+					free((void *) req->body);
 					free(req);
 				} 
 				else
 				{
-					handle_client_data(i, listener, &master, &fdmax);
+					handle_client_data(i, &master, &fdmax);
 				}
 			}
 		}
@@ -322,6 +331,10 @@ void add_handler_mapping(const char *path, RequestHandler request_handler, struc
 		dserver->handler_mappings[dserver->num_mappings].path_len = strlen(path);
 		dserver->handler_mappings[dserver->num_mappings++].request_handler = request_handler;
 	}
+}
+
+void static_files(char *static_files_location, struct dualserver *dserver) {
+	dserver->static_files_loc = static_files_location;
 }
 
 void init_dualserver(struct dualserver *dserver, int port) {

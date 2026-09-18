@@ -33,6 +33,8 @@ b -n 1000 -c 100 127.0.1:3000/
 
 ## Ideas
 
+* serving static files
+
 * pre memory allocation for http-requests, instead of calling malloc() repeatedly
 
 * replace select() with epoll()/kqueue() or io_uring
