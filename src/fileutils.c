@@ -9,7 +9,7 @@
 #include <ctype.h>
 #include "../include/fileutils.h"
 
-char *read_file(char *pathname, char *static_files_loc, size_t *outlen) {
+char *read_file(char *pathname, const char *static_files_loc, size_t *outlen) {
 	// TODO validate this pathname against path traversal attacks
 	if(strstr(pathname, "..")){
 		fprintf(stderr, "Error, parent directory is referred\n");
@@ -64,7 +64,7 @@ enum webfile is_web_file(const char *filename)
     const char *dot = strrchr(filename, '.');
 
     if (dot == NULL) {
-        return 0;
+        return UNK;
     }
 
     if(strcmp(dot, ".html") == 0) {

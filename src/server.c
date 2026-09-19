@@ -204,6 +204,40 @@ void set_request_body(struct http_request *req) {
 	}
 }
 
+void handle_mapping(struct http_request *req, struct http_response *res, size_t *out_len, struct threadpool_arg *tp_arg, char **response, size_t i) {
+	char *fname = NULL;
+	enum webfile wf;
+	if(req->path_len == 1 && req->path[0] == '/') {
+		fname = "index.html";
+		wf = HTML;
+	} else {
+	        fname = alloca(sizeof(char) * req->path_len);
+		memcpy(fname, &req->path[1], req->path_len - 1);
+		fname[req->path_len - 1] = '\0';
+		wf = is_web_file(fname);
+	}
+
+
+	if(UNK != wf) {
+                size_t file_len;
+		char *file_contents = read_file(fname, tp_arg->dserver->static_files_loc, &file_len);
+                if(file_contents != NULL) {
+			init_static_files_response(res, file_contents, file_len, wf);
+		} else {
+			notfound_handler(res);
+		}
+		*response = serialize(res, out_len);
+	} else if(req->path_len == tp_arg->handler_mappings[i].path_len 
+			&& !strncmp(req->path, tp_arg->handler_mappings[i].path,
+				tp_arg->handler_mappings[i].path_len)) {
+
+		init_default_response(res);
+		tp_arg->handler_mappings[i].request_handler(req, res);
+		*response = serialize(res, out_len);
+	
+	}
+}
+
 void *thread_handle(void *arg) 
 {
 	while(1) 
@@ -220,29 +254,7 @@ void *thread_handle(void *arg)
 		res = malloc(sizeof(struct http_response));
 
 		for(size_t i = 0; i < tp_arg->num_mappings; i++) {
-                        char *fname = alloca(sizeof(char) * req->path_len);
-		        memcpy(fname, &req->path[1], req->path_len - 1);
-                        fname[req->path_len - 1] = '\0';
-
-			enum webfile wf;
-			if(UNK != (wf = is_web_file(fname))) {
-                                size_t file_len;
-				char *file_contents = read_file(fname, tp_arg->dserver->static_files_loc, &file_len);
-                                if(file_contents != NULL) {
-					init_static_files_response(res, file_contents, file_len, wf);
-				} else {
-					notfound_handler(res);
-				}
-				response = serialize(res, &out_len);
-			} else if(req->path_len == tp_arg->handler_mappings[i].path_len 
-					&& !strncmp(req->path, tp_arg->handler_mappings[i].path,
-						tp_arg->handler_mappings[i].path_len)) {
-
-				init_default_response(res);
-				tp_arg->handler_mappings[i].request_handler(req, res);
-				response = serialize(res, &out_len);
-		
-			}
+			handle_mapping(req, res, &out_len, tp_arg, &response, i);
 		}
 
 		if(response == NULL) {
@@ -344,7 +356,7 @@ void add_handler_mapping(const char *path, RequestHandler request_handler, struc
 	}
 }
 
-void init_static_files(struct dualserver *dserver, char *loc) {
+void init_static_files(struct dualserver *dserver, const char *loc) {
 	dserver->static_files_loc = loc;
 }
 

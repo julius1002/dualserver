@@ -16,12 +16,32 @@ void init_static_files_response(struct http_response *res, char *file_contents, 
         res->reason = "OK";
         res->body = file_contents;
         res->body_len = file_len;
-	if(wf == JS) {
-		res->num_headers = 1;
-		struct phr_header contenttype;
-		contenttype.name = "Content-Type";
-		contenttype.value = "text/javascript";
-		res->headers[0] = contenttype;
+	switch(wf) {
+		case JS: {
+			res->num_headers = 1;
+			struct phr_header contenttype;
+			contenttype.name = "Content-Type";
+			contenttype.value = "text/javascript";
+			res->headers[0] = contenttype;
+			break;
+		} 
+	        case HTML: {
+			res->num_headers = 1;
+			struct phr_header contenttype;
+			contenttype.name = "Content-Type";
+			contenttype.value = "text/html";
+			res->headers[0] = contenttype;
+			break;
+	        }
+		case CSS: {
+			res->num_headers = 1;
+			struct phr_header contenttype;
+			contenttype.name = "Content-Type";
+			contenttype.value = "text/css";
+			res->headers[0] = contenttype;
+			break;
+	        }
+                default: {}
 	}
 
 }
