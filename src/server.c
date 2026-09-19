@@ -220,9 +220,9 @@ void *thread_handle(void *arg)
 		res = malloc(sizeof(struct http_response));
 
 		if(req->path_len == 0 || (req->path_len == 1 && req->path[0] == '/')) {
-			// TODO serve static files 
 			printf("serving static files\n");
-			return NULL;
+                        init_static_files_response(res);
+                        response = serialize(res, &out_len);
 		}
 							    
 		for(size_t i = 0; i < tp_arg->num_mappings; i++) {

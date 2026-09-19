@@ -11,6 +11,14 @@ void init_default_response(struct http_response *res) {
         res->num_headers = 0;
 }
 
+void init_static_files_response(struct http_response *res) {
+        res->status = 200;
+        res->reason = "OK";
+        res->body = NULL;
+        res->body_len = 0;
+        res->num_headers = 0;
+}
+
 char *serialize(struct http_response *res, size_t *response_len) {
         size_t len = 0, pos = 0;
         int n;

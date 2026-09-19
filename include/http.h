@@ -27,3 +27,5 @@ typedef void(*RequestHandler)(struct http_request *req, struct http_response *re
 char *serialize(struct http_response *res, size_t *raw_len);
 
 void init_default_response(struct http_response *res);
+
+void init_static_files_response(struct http_response *res);
