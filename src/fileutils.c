@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include "../include/fileutils.h"
 
 char *read_file(char *pathname, char *static_files_loc, size_t *outlen) {
 	// TODO validate this pathname against path traversal attacks
@@ -58,7 +59,7 @@ char *read_file(char *pathname, char *static_files_loc, size_t *outlen) {
 	return NULL;
 }
 
-int is_web_file(const char *filename)
+enum webfile is_web_file(const char *filename)
 {
     const char *dot = strrchr(filename, '.');
 
@@ -66,5 +67,13 @@ int is_web_file(const char *filename)
         return 0;
     }
 
-    return strcmp(dot, ".html") == 0 || strcmp(dot, ".js")   == 0 || strcmp(dot, ".css")  == 0;
+    if(strcmp(dot, ".html") == 0) {
+	    return HTML;
+    } else if(strcmp(dot, ".js") == 0) {
+	    return JS;
+    } else if(strcmp(dot, ".css") == 0) {
+	    return CSS;
+    } else {
+	    return UNK;
+    }
 }

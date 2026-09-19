@@ -1,5 +1,4 @@
 #include "../include/server.h"
-#include "../include/fileutils.h"
 #include <fcntl.h>
 
 /**
@@ -225,11 +224,12 @@ void *thread_handle(void *arg)
 		        memcpy(fname, &req->path[1], req->path_len - 1);
                         fname[req->path_len - 1] = '\0';
 
-			if(is_web_file(fname)) {
+			enum webfile wf;
+			if(UNK != (wf = is_web_file(fname))) {
                                 size_t file_len;
 				char *file_contents = read_file(fname, tp_arg->dserver->static_files_loc, &file_len);
                                 if(file_contents != NULL) {
-					init_static_files_response(res, file_contents, file_len);
+					init_static_files_response(res, file_contents, file_len, wf);
 				} else {
 					notfound_handler(res);
 				}

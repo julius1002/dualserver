@@ -11,11 +11,19 @@ void init_default_response(struct http_response *res) {
         res->num_headers = 0;
 }
 
-void init_static_files_response(struct http_response *res, char *file_contents, size_t file_len) {
+void init_static_files_response(struct http_response *res, char *file_contents, size_t file_len, enum webfile wf) {
         res->status = 200;
         res->reason = "OK";
         res->body = file_contents;
         res->body_len = file_len;
+	if(wf == JS) {
+		res->num_headers = 1;
+		struct phr_header contenttype;
+		contenttype.name = "Content-Type";
+		contenttype.value = "text/javascript";
+		res->headers[0] = contenttype;
+	}
+
 }
 
 char *serialize(struct http_response *res, size_t *response_len) {

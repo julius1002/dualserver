@@ -1,6 +1,7 @@
 #include "../picohttpparser-1.2/picohttpparser.h"
 #include <unistd.h>
 #include <string.h>
+#include "fileutils.h"
 
 struct http_request {
 	int conn;
@@ -28,4 +29,4 @@ char *serialize(struct http_response *res, size_t *raw_len);
 
 void init_default_response(struct http_response *res);
 
-void init_static_files_response(struct http_response *res, char *file_contents, size_t file_len);
+void init_static_files_response(struct http_response *res, char *file_contents, size_t file_len, enum webfile wf);
