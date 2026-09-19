@@ -23,3 +23,5 @@ void init_dualserver(struct dualserver *dserver, int port);
 void add_handler_mapping(const char *path, RequestHandler request_handler, struct dualserver *dserver);
 
 int launch_dualserver(struct dualserver *dserver);
+
+void static_files(char *static_files_location, struct dualserver *dserver);

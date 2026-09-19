@@ -1,4 +1,5 @@
 #include "../include/server.h"
+#include "../include/fileutils.h"
 #include <fcntl.h>
 
 /**
@@ -140,7 +141,7 @@ void prepare_signaling_pipe(int *fds) {
  */
 void handle_client_data(int fd, fd_set *master, int *fdmax)
 {
-	char buf[512];    // buffer for client data
+	char buf[1024];    // buffer for client data
 	int nbytes;
 
 	if ((nbytes = recv(fd, buf, sizeof buf, 0)) <= 0) 
@@ -219,27 +220,32 @@ void *thread_handle(void *arg)
 		set_request_body(req);
 		res = malloc(sizeof(struct http_response));
 
-		if(req->path_len == 0 || (req->path_len == 1 && req->path[0] == '/')) {
-			printf("serving static files\n");
-                        init_static_files_response(res);
-                        response = serialize(res, &out_len);
-		}
-							    
 		for(size_t i = 0; i < tp_arg->num_mappings; i++) {
-			if(req->path_len == tp_arg->handler_mappings[i].path_len 
+                       char *fname = alloca(sizeof(char) * req->path_len);
+		       memcpy(fname, &req->path[1], req->path_len - 1);
+                       fname[req->path_len - 1] = '\0';
+
+			if(is_web_file(fname)) {
+                                size_t file_len;
+				char *file_contents = read_file(fname, "./public", &file_len);
+				init_static_files_response(res, file_contents, file_len);
+				response = serialize(res, &out_len);
+		
+			} else if(req->path_len == tp_arg->handler_mappings[i].path_len 
 					&& !strncmp(req->path, tp_arg->handler_mappings[i].path,
 						tp_arg->handler_mappings[i].path_len)) {
 
 				init_default_response(res);
 				tp_arg->handler_mappings[i].request_handler(req, res);
 				response = serialize(res, &out_len);
+		
 			}
 		}
+
 		if(response == NULL) {
 			notfound_handler(res);
-			response = serialize(res, &out_len);
 		}
-		
+
 	        if(0 > write(req->conn, response, out_len)) {
 			perror("Error write");
 			exit(1);
@@ -331,10 +337,6 @@ void add_handler_mapping(const char *path, RequestHandler request_handler, struc
 		dserver->handler_mappings[dserver->num_mappings].path_len = strlen(path);
 		dserver->handler_mappings[dserver->num_mappings++].request_handler = request_handler;
 	}
-}
-
-void static_files(char *static_files_location, struct dualserver *dserver) {
-	dserver->static_files_loc = static_files_location;
 }
 
 void init_dualserver(struct dualserver *dserver, int port) {
