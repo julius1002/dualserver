@@ -13,6 +13,7 @@ int main()
 {
 	struct dualserver dserver;
 	init_dualserver(&dserver, 3000);
+        init_static_files(&dserver, "./public");
 	add_handler_mapping("/greetings", greetings_handler, &dserver);
 	launch_dualserver(&dserver);
 	return 0;

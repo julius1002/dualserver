@@ -24,4 +24,4 @@ void add_handler_mapping(const char *path, RequestHandler request_handler, struc
 
 int launch_dualserver(struct dualserver *dserver);
 
-void static_files(char *static_files_location, struct dualserver *dserver);
+void init_static_files(struct dualserver *dserver, char *loc);

@@ -221,16 +221,17 @@ void *thread_handle(void *arg)
 		res = malloc(sizeof(struct http_response));
 
 		for(size_t i = 0; i < tp_arg->num_mappings; i++) {
-                       char *fname = alloca(sizeof(char) * req->path_len);
-		       memcpy(fname, &req->path[1], req->path_len - 1);
-                       fname[req->path_len - 1] = '\0';
+                        char *fname = alloca(sizeof(char) * req->path_len);
+		        memcpy(fname, &req->path[1], req->path_len - 1);
+                        fname[req->path_len - 1] = '\0';
 
 			if(is_web_file(fname)) {
                                 size_t file_len;
-				char *file_contents = read_file(fname, "./public", &file_len);
-				init_static_files_response(res, file_contents, file_len);
-				response = serialize(res, &out_len);
-		
+				char *file_contents = read_file(fname, tp_arg->dserver->static_files_loc, &file_len);
+                                if(file_contents != NULL) {
+					init_static_files_response(res, file_contents, file_len);
+					response = serialize(res, &out_len);
+				}
 			} else if(req->path_len == tp_arg->handler_mappings[i].path_len 
 					&& !strncmp(req->path, tp_arg->handler_mappings[i].path,
 						tp_arg->handler_mappings[i].path_len)) {
@@ -272,6 +273,7 @@ int launch_dualserver(struct dualserver *dserver)
 	struct threadpool_arg arg;
 	arg.handler_mappings = dserver->handler_mappings;
 	arg.num_mappings = dserver->num_mappings;
+        arg.dserver = dserver;
 
 	arg.thread_handle = thread_handle;
 	init_threadpool(10, 1000, (void *) &arg);
@@ -337,6 +339,10 @@ void add_handler_mapping(const char *path, RequestHandler request_handler, struc
 		dserver->handler_mappings[dserver->num_mappings].path_len = strlen(path);
 		dserver->handler_mappings[dserver->num_mappings++].request_handler = request_handler;
 	}
+}
+
+void init_static_files(struct dualserver *dserver, char *loc) {
+	dserver->static_files_loc = loc;
 }
 
 void init_dualserver(struct dualserver *dserver, int port) {

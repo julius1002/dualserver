@@ -58,12 +58,6 @@ char *read_file(char *pathname, char *static_files_loc, size_t *outlen) {
 	return NULL;
 }
 
-int is_filename(const char *name)
-{
-
-	return 1;
-}
-
 int is_web_file(const char *filename)
 {
     const char *dot = strrchr(filename, '.');
@@ -74,12 +68,3 @@ int is_web_file(const char *filename)
 
     return strcmp(dot, ".html") == 0 || strcmp(dot, ".js")   == 0 || strcmp(dot, ".css")  == 0;
 }
-
-
-
-/*int main() {
-	size_t outlen;
-	char *output = read_file("index.html", "public", &outlen);
-        printf("len: %zu, output:  %s\n", outlen, output);
-	return 0;
-}*/

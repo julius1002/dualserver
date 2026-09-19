@@ -16,6 +16,7 @@ struct threadpool_arg {
 	void *(*thread_handle)(void *arg);
 	size_t num_mappings;
 	struct handler_mapping *handler_mappings;
+        struct dualserver *dserver;
 };
 
 void init_threadpool(int num_threads, int queue_cap, void *arg);
