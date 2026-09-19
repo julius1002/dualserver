@@ -230,8 +230,10 @@ void *thread_handle(void *arg)
 				char *file_contents = read_file(fname, tp_arg->dserver->static_files_loc, &file_len);
                                 if(file_contents != NULL) {
 					init_static_files_response(res, file_contents, file_len);
-					response = serialize(res, &out_len);
+				} else {
+					notfound_handler(res);
 				}
+				response = serialize(res, &out_len);
 			} else if(req->path_len == tp_arg->handler_mappings[i].path_len 
 					&& !strncmp(req->path, tp_arg->handler_mappings[i].path,
 						tp_arg->handler_mappings[i].path_len)) {
@@ -245,6 +247,7 @@ void *thread_handle(void *arg)
 
 		if(response == NULL) {
 			notfound_handler(res);
+			response = serialize(res, &out_len);
 		}
 
 	        if(0 > write(req->conn, response, out_len)) {
