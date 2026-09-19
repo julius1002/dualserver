@@ -9,7 +9,7 @@ struct http_request {
 	size_t method_len, path_len, num_headers, body_len;
 	struct phr_header headers[50];
 	const char *body;
-	struct fd_set *master;
+	fd_set *master;
 	int wakeup_fd;
 };
 
