@@ -1,4 +1,4 @@
-#include "../../include/server.h"
+#include <server.h>
 #include "./cJSON-1.7.19/cJSON.h"
 
 #define GREETINGS_RESPONSE "HTTP/1.0 200 OK\r\nContent-Length: 10\r\n\r\nGreetings!"
@@ -25,7 +25,7 @@ void greetings_handler(struct http_request *req, struct http_response *res)
 int main() 
 {
 	struct dualserver dserver;
-	init_dualserver(&dserver);
+	init_dualserver(&dserver, 3000);
 	add_handler_mapping("/greetings", greetings_handler, &dserver);
 	launch_dualserver(&dserver);
 	return 0;
